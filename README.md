@@ -8,43 +8,116 @@
 
 ---
 
+## TL;DR (Too Long; Didn't Read)
+
+This guide teaches you how to hunt for malicious actors in encrypted network traffic.
+
+* **The Problem**: Most network traffic is encrypted (TLS/SSL), making it a blind spot for security monitoring. Attackers hide their activities inside this encrypted traffic.
+* **The Old Solution (JA3)**: A method to fingerprint TLS clients. It's useful but easy for attackers to fake (impersonate) and can be unreliable.
+* **The New Solution (JA4+ Suite)**: A much more powerful set of fingerprints for not just TLS, but also TCP, HTTP, and certificates. This creates a multi-dimensional view of network behavior, making it harder for attackers to hide.
+* **What You'll Learn**: Through hands-on examples with real malware PCAPs (EMOTET, Cobalt Strike), you will learn to use tools like Wireshark and Malcolm to move from hunting for static **Indicators of Compromise (IoCs)** to proactive, behavior-based **Indicators of Attack (IoAs)** using the JA4+ suite.
+
+---
+
 ## 🚀 Why Read This Guide?
 
-This guide is a comprehensive, hands-on journey into the world of modern network threat hunting. By completing it, you will learn to dissect complex, encrypted traffic to uncover sophisticated threats, leveling up from basic artifact matching to advanced behavioral analysis.
+This guide is a comprehensive, hands-on journey into the world of modern network threat hunting. By completing it, you will move beyond basic artifact matching and learn to dissect complex, encrypted traffic to uncover sophisticated threats.
 
-| You Will Master These **Concepts** | You Will Use These **Tools** | You Will Gain These **Capabilities** |
-| :--- | :--- | :--- |
-| ✅ **Indicators of Compromise (IoCs)**: Understand how to use static artifacts like malicious IP addresses, domains, and file hashes for initial investigation. | 🛠️ **Wireshark & `tshark`**: Use industry-standard tools for manual packet inspection and command-line analysis to extract critical evidence. | 🎯 **Hunt for Static IoCs**: Effectively use known-bad lists to find initial footholds and confirmed malicious activity in network traffic. |
-| ✅ **Indicators of Attack (IoAs)**: Learn the powerful technique of identifying threats by their *behavior*—how they act on the network, regardless of their infrastructure. | 🛠️ **RITA**: Automate the detection of C2 beaconing—a key IoA—by analyzing Zeek logs for suspicious, repetitive communication patterns. | 🎯 **Transition from IoC to IoA Hunting**: Evolve your skills from reactive artifact hunting to proactively identifying attacker TTPs before IoCs are even generated. |
-| ✅ **TLS/JA3/JA4+ Fingerprinting**: Go from theory to practice in identifying clients and applications based on their unique network fingerprints—a core IoA. | 🛠️ **The Malcolm Suite**: Leverage a powerful, integrated NTA platform, using **Zeek** for metadata, **Suricata** for alerts, and **Arkime** for full-packet investigation. | 🎯 **Deconstruct Real-World Attacks**: Analyze the full attack chain of threats like **EMOTET with Cobalt Strike** and a **Microsoft Teams Phishing Campaign**. |
-| ✅ **Multi-Dimensional Analysis**: Combine JA4T, JA4H, and JA4X signatures to build high-fidelity IoAs that expose threats across multiple protocol layers. | 🛠️ **Arkime Query Language**: Use Arkime's powerful search syntax to combine multiple JA4+ fingerprints and other metadata into a single, effective hunt. | 🎯 **Unmask Evasive Malware & Build High-Fidelity Hunt Queries**: Identify disguised threats and write powerful, multi-faceted queries to find malicious activity with minimal false positives. |
+### You Will Master These Concepts:
+* ✅ **Indicators of Compromise (IoCs)**: Understand how to use static artifacts like malicious IP addresses, domains, and file hashes for initial investigation.
+* ✅ **Indicators of Attack (IoAs)**: Learn the powerful technique of identifying threats by their *behavior*—how they act on the network, regardless of their infrastructure.
+* ✅ **TLS/JA3/JA4+ Fingerprinting**: Go from theory to practice in identifying clients and applications based on their unique network fingerprints—a core IoA.
+* ✅ **Multi-Dimensional Analysis**: Combine JA4T, JA4H, and JA4X signatures to build high-fidelity IoAs that expose threats across multiple protocol layers.
+
+### You Will Use These Tools:
+* 🛠️ **Wireshark & `tshark`**: Use industry-standard tools for manual packet inspection and command-line analysis to extract critical evidence.
+* 🛠️ **RITA**: Automate the detection of C2 beaconing—a key IoA—by analyzing Zeek logs for suspicious, repetitive communication patterns.
+* 🛠️ **The Malcolm Suite**: Leverage a powerful, integrated NTA platform, using **Zeek** for metadata, **Suricata** for alerts, and **Arkime** for full-packet investigation.
+* 🛠️ **Arkime Query Language**: Use Arkime's powerful search syntax to combine multiple JA4+ fingerprints and other metadata into a single, effective hunt.
+
+### You Will Gain These Capabilities:
+* 🎯 **Hunt for Static IoCs**: Effectively use known-bad lists to find initial footholds and confirmed malicious activity in network traffic.
+* 🎯 **Transition from IoC to IoA Hunting**: Evolve your skills from reactive artifact hunting to proactively identifying attacker TTPs before IoCs are even generated.
+* 🎯 **Deconstruct Real-World Attacks**: Analyze the full attack chain of threats like **EMOTET with Cobalt Strike** and a **Microsoft Teams Phishing Campaign**.
+* 🎯 **Unmask Evasive Malware & Build High-Fidelity Hunt Queries**: Identify disguised threats and write powerful, multi-faceted queries to find malicious activity with minimal false positives.
+
+---
+
+### How Malcolm Empowers Your Hunt
+
+The TL;DR explained the problem of encrypted traffic. Here’s a visual representation of how a Network Traffic Analysis (NTA) platform like Malcolm turns raw, confusing data into clear, actionable intelligence.
+
+```mermaid
+graph TD
+    A["📦 Raw PCAP File<br>(e.g., emotet.pcap)"] --> B{MALCOLM NTA PLATFORM};
+
+    subgraph B [MALCOLM NTA PLATFORM]
+        C["📄 Zeek<br>Generates Metadata Logs<br>(conn.log, http.log, ssl.log)"]
+        D["🚨 Suricata<br>Generates Alerts<br>(Known-bad signatures)"]
+        E["🔍 Arkime<br>Indexes All Packets<br>(Full Packet Capture)"]
+    end
+
+    B --> C;
+    B --> D;
+    B --> E;
+
+    subgraph F [Actionable Intelligence]
+        G["<strong>IoCs - Indicators of Compromise</strong><br><em>'What artifacts are bad?'</em><br>- Malicious IP: 139.60.160.8<br>- Malicious Domain: verofes.com<br>- Malicious JA3: 37f463bf4616ecd445d4a1937da06e19"]
+        H["<strong>IoAs - Indicators of Attack</strong><br><em>'What behavior is bad?'</em><br>- Rhythmic Beaconing (C2)<br>- Self-Signed Certificates<br>- Suspicious JA4T/H/X Fingerprints"]
+    end
+
+    C --> G;
+    D --> G;
+    E --> G;
+    C --> H;
+    E --> H;
+```
 
 ---
 
 ## 📜 Table of Contents
 
-1.  [**Theoretical Foundation**](#-part-1-theoretical-foundation)
+1.  [📦 **Sample PCAPs Used in This Guide**](#-sample-pcaps-used-in-this-guide)
+2.  [💡 **Part 1: Theoretical Foundation**](#-part-1-theoretical-foundation)
     * [The Challenge of Encrypted Traffic](#the-challenge-of-encrypted-traffic)
     * [What is TLS and JA3/S?](#what-is-tls-and-ja3s)
     * [Weaknesses of JA3](#️-weaknesses-of-ja3)
     * [JA3 vs. JA4+ - The Next Generation](#-ja3-vs-ja4---the-next-generation)
     * [The JA4+ Suite](#the-ja4-suite)
-2.  [**Hands-On: Hunting with JA3 (EMOTET & Cobalt Strike)**](#-part-2-hands-on-hunting-with-ja3-emotet--cobalt-strike)
+3.  [🕵️ **Part 2: Hands-On with JA3 (EMOTET & Cobalt Strike)**](#️-part-2-hands-on-with-ja3-emotet--cobalt-strike)
     * [Identifying Malicious Traffic with JA3 IoCs](#identifying-malicious-traffic-with-ja3-iocs)
     * [Basic PCAP Analysis: Identifying Beaconing](#basic-pcap-analysis-identifying-beaconing)
     * [Beacon Analysis with RITA](#beacon-analysis-with-rita)
     * [Certificate Anomaly Analysis](#certificate-anomaly-analysis)
-3.  [**Hands-On: Hunting with Malcolm (EMOTET Mail Spam)**](#-part-3-hands-on-hunting-with-malcolm-emotet-mail-spam)
+4.  [🖥️ **Part 3: Hands-On with Malcolm (EMOTET Mail Spam)**](#️-part-3-hands-on-with-malcolm-emotet-mail-spam)
     * [Advanced PCAP Analysis with Malcolm](#advanced-pcap-analysis-with-malcolm)
     * [Investigating with Zeek, Suricata, and Arkime](#investigating-with-zeek-suricata-and-arkime)
     * [Identifying Anomalies in Dashboards](#identifying-anomalies-in-dashboards)
-4.  [**Advanced Hunting with JA4+**](#-part-4-advanced-hunting-with-ja4)
+5.  [🚀 **Part 4: Advanced Hunting with JA4+**](#-part-4-advanced-hunting-with-ja4)
     * [Example: Hunting an Unknown JA4T Signature (Pi Node Miner)](#example-hunting-an-unknown-ja4t-signature-pi-node-miner)
     * [Hands-On: Microsoft Teams Phishing Campaign](#hands-on-microsoft-teams-phishing-campaign)
     * [Hunting with JA4H (HTTP)](#hunting-with-ja4h-http)
     * [Hunting with JA4X (Certificates)](#hunting-with-ja4x-certificates)
     * [Combining Signatures for High-Fidelity Detection](#combining-signatures-for-high-fidelity-detection)
-5.  [**Conclusion**](#-conclusion)
+6.  [✅ **Conclusion**](#-conclusion)
+
+---
+
+## 📦 Sample PCAPs Used in This Guide
+
+To follow along with the hands-on examples, you can download the malicious packet captures from their original source at [Malware-Traffic-Analysis.net](https://www.malware-traffic-analysis.net/).
+
+* **Part 2 (JA3 Hunt)**: **EMOTET with Cobalt Strike**
+    * **Source**: [2022-03-24 - Emotet Epoch 4 with Cobalt Strike](https://www.malware-traffic-analysis.net/2022/03/24/index.html)
+    * **File**: `2022-03-24-Emotet-epoch4-with-Cobalt-Strike-carved.pcap`
+
+* **Part 3 (Malcolm Hunt)**: **EMOTET Mail Spam**
+    * **Source**: [2022-04-20 - Emotet Epoch 4 Infection with Cobalt Strike](https://www.malware-traffic-analysis.net/2022/04/20/index.html)
+    * **File**: `2022-04-20-Emotet-epoch4-infection-with-spambot-traffic.pcap`
+
+* **Part 4 (JA4+ Hunt)**: **Microsoft Teams Phishing**
+    * **Source**: [2023-01-25 - Fake Microsoft Teams Update Page](https://www.malware-traffic-analysis.net/2023/01/25/index.html)
+    * **File**: `2023-01-25-Fake-Microsoft-Teams-update-page-delivers-malware.pcap`
 
 ---
 
@@ -91,30 +164,53 @@ While powerful, JA3 has significant weaknesses:
 
 To address the shortcomings of JA3, FoxIO developed the **JA4+** suite. The goal was to create stronger, more readable, and multi-dimensional fingerprints across various protocols.
 
-<!-- Add Image from PDF: Figure 2 - JA3 vs JA4+ Comparison Table -->
+```mermaid
+graph TD
+    subgraph A [JA3 Analysis]
+        direction LR
+        A1(Client Hello) --> A2{"JA3 Hash<br>e.g., 37f463..."};
+        A2 --> A3["Single Point of Failure<br>- Easy to Impersonate<br>- Prone to Collisions"];
+    end
 
-| Feature                | JA3                                           | JA4+                                                 |
-| ---------------------- | --------------------------------------------- | ---------------------------------------------------- |
-| **Focus** | TLS Client Hello                              | TLS, HTTP, SSH, and more                             |
-| **Fingerprint Format** | MD5 hash (opaque)                             | Human-readable string (modular)                      |
-| **Protocol Context** | Limited (TLS only)                            | Richer context across multiple protocols             |
-| **Evasion Resistance** | Low (easily spoofed)                          | Higher (harder to mimic)                             |
-| **Collision Risk** | High                                          | Reduced (more granular)                              |
-| **Extensibility** | Static                                        | Modular and extensible                               |
-| **Use Case** | IOC matching                                  | Threat hunting, behavioral analysis                  |
+    subgraph B [JA4+ Multi-Dimensional Analysis]
+        direction TB
+        B1(Network Connection) --> B2("JA4T<br>TCP Fingerprint");
+        B1 --> B3("JA4<br>TLS Fingerprint");
+        B1 --> B4("JA4H<br>HTTP Fingerprint");
+        B1 --> B5("JA4X<br>Certificate Fingerprint");
+        B2 & B3 & B4 & B5 --> B6["Resilient Behavioral Profile<br><em>Indicator of Attack (IoA)</em>"];
+    end
+
+    style A3 fill:#f99,stroke:#333,stroke-width:2px
+    style B6 fill:#9cf,stroke:#333,stroke-width:2px
+```
 
 ### The JA4+ Suite
 
 JA4+ is a collection of signatures for different aspects of a connection:
 
-| Full Name          | Short Name | Description                             |
-| ------------------ | ---------- | --------------------------------------- |
-| JA4                | JA4        | TLS Client Fingerprinting               |
-| JA4Server          | JA4S       | TLS Server Response Fingerprinting      |
-| JA4HTTP            | JA4H       | HTTP Client Fingerprinting              |
-| JA4Latency         | JA4L       | Latency Measurement                     |
-| JA4X509            | JA4X       | X509 TLS Certificate Fingerprinting     |
-| JA4TCP             | JA4T       | Passive TCP Client Fingerprinting       |
+```mermaid
+mindmap
+  root((JA4+ Suite))
+    JA4T
+      ::icon(fa fa-network-wired)
+      TCP Client
+    JA4
+      ::icon(fa fa-lock)
+      TLS Client
+    JA4H
+      ::icon(fa fa-file-code)
+      HTTP Client
+    JA4X
+      ::icon(fa fa-certificate)
+      X.509 Certificate
+    JA4S
+      ::icon(fa fa-server)
+      TLS Server
+    JA4L
+      ::icon(fa fa-stopwatch)
+      Latency
+```
 
 Unlike JA3's MD5 hash, JA4+ signatures are human-readable strings. For example, a **JA4T (TCP)** signature looks like this:
 
@@ -133,7 +229,7 @@ This modularity allows for much more nuanced and resilient threat hunting.
 
 ---
 
-## 🕵️ Part 2: Hands-On: Hunting with JA3 (EMOTET & Cobalt Strike)
+## 🕵️ Part 2: Hands-On with JA3 (EMOTET & Cobalt Strike)
 
 ### Identifying Malicious Traffic with JA3 IoCs
 
@@ -193,7 +289,7 @@ In our PCAP, we found a certificate for `verofes.com` with a suspicious `CommonN
 
 ---
 
-## 🖥️ Part 3: Hands-On: Hunting with Malcolm (EMOTET Mail Spam)
+## 🖥️ Part 3: Hands-On with Malcolm (EMOTET Mail Spam)
 
 ### Advanced PCAP Analysis with Malcolm
 
@@ -317,6 +413,18 @@ This query allows us to:
 ## ✅ Conclusion
 
 As attackers increasingly hide within encrypted traffic, traditional IoC-based detection is no longer sufficient. We must focus on the **how** and the **who** by analyzing communication metadata.
+
+### The Advanced Hunting Workflow
+
+```mermaid
+graph TD
+    subgraph Hunting Workflow
+        HW1{"Start: High-Frequency Anomaly<br>e.g., Unknown JA4T Signature"} --> HW2["Deconstruct the Signature<br>Analyze its components (MSS, TCP Options)"];
+        HW2 --> HW3["Pivot in Arkime<br>Correlate with other indicators<br>(Ports, JA4H, JA4X)"];
+        HW3 --> HW4["Build a High-Fidelity Query<br>Combine multiple JA4+ signatures"];
+        HW4 --> HW5["Identify Malicious Behavior<br>e.g., C2 Tunneling, Bot Activity"];
+    end
+```
 
 1.  **JA3 is a good start**, but it's brittle and easily evaded through impersonation.
 2.  **JA4+ provides a multi-dimensional view** of network traffic, creating fingerprints for TCP, TLS, HTTP, and certificates that are far more resilient to evasion.
