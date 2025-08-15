@@ -4,7 +4,7 @@
 
 > In the past, security systems could inspect the content of network traffic. Today, with the vast majority of global traffic encrypted (TLS/SSL), this capability is nearly gone. This article describes the JA4+ suite of signatures, which allows us to confront the growing threat of sophisticated attackers using encrypted communication. We will use the **Malcolm** tool to analyze malicious and encrypted network traffic in the examples provided.
 
-<!-- Add Image from PDF: "Do you struggle with detection?" cartoon -->
+![Do you struggle with detection?](images/do-you-struggle-with-detection.png)
 
 ---
 
@@ -47,31 +47,7 @@ This guide is a comprehensive, hands-on journey into the world of modern network
 
 The TL;DR explained the problem of encrypted traffic. Here’s a visual representation of how a Network Traffic Analysis (NTA) platform like Malcolm turns raw, confusing data into clear, actionable intelligence.
 
-```mermaid
-graph TD
-    A["📦 Raw PCAP File<br>(e.g., emotet.pcap)"] --> B{MALCOLM NTA PLATFORM};
-
-    subgraph B [MALCOLM NTA PLATFORM]
-        C["📄 Zeek<br>Generates Metadata Logs<br>(conn.log, http.log, ssl.log)"]
-        D["🚨 Suricata<br>Generates Alerts<br>(Known-bad signatures)"]
-        E["🔍 Arkime<br>Indexes All Packets<br>(Full Packet Capture)"]
-    end
-
-    B --> C;
-    B --> D;
-    B --> E;
-
-    subgraph F [Actionable Intelligence]
-        G["<strong>IoCs - Indicators of Compromise</strong><br><em>'What artifacts are bad?'</em><br>- Malicious IP: 139.60.160.8<br>- Malicious Domain: verofes.com<br>- Malicious JA3: 37f463bf4616ecd445d4a1937da06e19"]
-        H["<strong>IoAs - Indicators of Attack</strong><br><em>'What behavior is bad?'</em><br>- Rhythmic Beaconing (C2)<br>- Self-Signed Certificates<br>- Suspicious JA4T/H/X Fingerprints"]
-    end
-
-    C --> G;
-    D --> G;
-    E --> G;
-    C --> H;
-    E --> H;
-```
+![Malcolm Architecture Diagram](images/malcolm-architecture-diagram.png)
 
 ---
 
@@ -127,13 +103,17 @@ To follow along with the hands-on examples, you can download the malicious packe
 
 Most internet communication is encrypted using TLS/SSL protocols. While essential for privacy, this creates a significant challenge for security teams. Attackers exploit encrypted channels to hide their activities, forcing us to shift our focus from **what** (the data, files, commands) to **how** and **who** (the metadata of the communication).
 
-<!-- Add Image from PDF: Figure 1 - HTTPS Usage Over Time Chart -->
+![HTTPS Usage Over Time Chart](images/https-usage-over-time-chart.png)
 
 According to Google, the use of HTTPS is constantly rising, and Zscaler found that over 87% of online threats are hidden in encrypted traffic. This is where JA3 and its successor, JA4+, come into play.
+
+![Pyramid of Pain Diagram](images/pyramid-of-pain-diagram.png)
 
 ### What is TLS and JA3/S?
 
 The TLS protocol establishes a secure connection through a handshake process. The initial steps, `Client Hello` and `Server Hello`, are sent in plaintext.
+
+![TLS Handshake Diagram](images/tls-handshake-diagram.png)
 
 JA3, an algorithm developed by Salesforce, creates a fingerprint (an MD5 hash) of the plaintext fields in the `Client Hello` packet. This allows us to identify the client-side application initiating the connection.
 
@@ -142,7 +122,7 @@ JA3, an algorithm developed by Salesforce, creates a fingerprint (an MD5 hash) o
 
 By combining `JA3` and `JA3S`, we can precisely identify a specific client-server communication. For example, a generic Python client (`JA3`) communicating with a known Cobalt Strike C2 server (`JA3S`) becomes a high-confidence indicator of malicious activity.
 
-<!-- Add Image from PDF: Diagram of JA3 Python search vs. JA3 + JA3S search -->
+![JA3 Search vs JA3+JA3S Search Graphs](images/ja3-and-ja3s-search-graph.png)
 
 | Example Type | Application | JA3 / JA3S Fingerprint                                       |
 | :----------- | :---------- | :----------------------------------------------------------- |
@@ -164,59 +144,23 @@ While powerful, JA3 has significant weaknesses:
 
 To address the shortcomings of JA3, FoxIO developed the **JA4+** suite. The goal was to create stronger, more readable, and multi-dimensional fingerprints across various protocols.
 
-```mermaid
-graph TD
-    subgraph A [JA3 Analysis]
-        direction LR
-        A1(Client Hello) --> A2{"JA3 Hash<br>e.g., 37f463..."};
-        A2 --> A3["Single Point of Failure<br>- Easy to Impersonate<br>- Prone to Collisions"];
-    end
-
-    subgraph B [JA4+ Multi-Dimensional Analysis]
-        direction TB
-        B1(Network Connection) --> B2("JA4T<br>TCP Fingerprint");
-        B1 --> B3("JA4<br>TLS Fingerprint");
-        B1 --> B4("JA4H<br>HTTP Fingerprint");
-        B1 --> B5("JA4X<br>Certificate Fingerprint");
-        B2 & B3 & B4 & B5 --> B6["Resilient Behavioral Profile<br><em>Indicator of Attack (IoA)</em>"];
-    end
-
-    style A3 fill:#f99,stroke:#333,stroke-width:2px
-    style B6 fill:#9cf,stroke:#333,stroke-width:2px
-```
+![JA3 vs JA4+ Comparison Table](images/ja3-vs-ja4-comparsion-table.png)
 
 ### The JA4+ Suite
 
 JA4+ is a collection of signatures for different aspects of a connection:
 
-```mermaid
-mindmap
-  root((JA4+ Suite))
-    JA4T
-      ::icon(fa fa-network-wired)
-      TCP Client
-    JA4
-      ::icon(fa fa-lock)
-      TLS Client
-    JA4H
-      ::icon(fa fa-file-code)
-      HTTP Client
-    JA4X
-      ::icon(fa fa-certificate)
-      X.509 Certificate
-    JA4S
-      ::icon(fa fa-server)
-      TLS Server
-    JA4L
-      ::icon(fa fa-stopwatch)
-      Latency
-```
+![JA4+ Suite Components Table](images/ja4-suite-components-table.png)
+
+![JA4+ Fingerprints for various applications](images/ja4-fingerprint-for-various-applications.png)
+
+![Sliver C2 List from JA4X](images/silver-c2-list-from-ja4x.png)
 
 Unlike JA3's MD5 hash, JA4+ signatures are human-readable strings. For example, a **JA4T (TCP)** signature looks like this:
 
 `JA4T=65535_2-1-3-1-1-4_1460_8`
 
-<!-- Add Image from PDF: JA4T TCP Fingerprint Breakdown Diagram -->
+![JA4T TCP Fingerprint Breakdown Diagram](images/ja4t-tcp-fingerprint-breakdown-diagram.png)
 
 This can be broken down:
 
@@ -235,6 +179,8 @@ This modularity allows for much more nuanced and resilient threat hunting.
 
 In this scenario, we analyze a PCAP where 82% of the traffic is TLS.
 
+![Wireshark Protocol Hierarchy for EMOTET PCAP](images/wireshark-protocol-hierarchy-for-emotet-pcap.png)
+
 **1. Extract JA3 Hashes and IPs:**
 Using `tshark`, we can extract the unique JA3 fingerprints and their corresponding destination IPs. The command aggregates the counts of each unique JA3 hash and the destination IP it communicates with.
 
@@ -243,14 +189,7 @@ Using `tshark`, we can extract the unique JA3 fingerprints and their correspondi
 tshark -r capture.pcap -Y "tls.handshake.type == 1" -T fields -e tls.ja3 -e ip.dst | sort | uniq -c
 ```
 
-**Sample Output:**
-```
-  2 6271f898ce5be7dd52b0fc260d0662b3 208.113.219.140
-  2 6271f898ce5be7dd52b0fc260d0662b3 195.8.222.36
- 13 51c64c77e60f3980eea90869b68c58a8 144.202.49.189
- 33 51c64c77e60f3980eea90869b68c58a8 70.36.102.35
- 37 37f463bf4616ecd445d4a1937da06e19 139.60.160.8
-```
+![tshark output for JA3 hashes and IPs](images/ja3-hashes-and-ips.png)
 
 **2. Check Against Threat Intelligence:**
 We take the IPs and JA3 hashes and check them against IoC databases like Abuse.ch's ThreatFox and VirusTotal. The high frequency of connections to certain IPs, combined with known malicious JA3 hashes, quickly reveals the C2 servers.
@@ -258,7 +197,9 @@ We take the IPs and JA3 hashes and check them against IoC databases like Abuse.c
 * **IP**: `139.60.160.8` -> Known Cobalt Strike C2
 * **JA3**: `37f463bf4616ecd445d4a1937da06e19` -> Associated with Cobalt Strike
 
-<!-- Add Image from PDF: ThreatFox lookup result for the malicious IP -->
+![ThreatFox lookup for 139.60.160.8](images/threatfox-look-up-160-8.png)
+![ThreatFox lookup for 70.36.102.35](images/threatfox-look-up-102-35.png)
+![ThreatFox lookup for 144.202.49.189](images/threatfox-look-up-49-189.png)
 
 ### Basic PCAP Analysis: Identifying Beaconing
 
@@ -268,13 +209,13 @@ By filtering the traffic in Wireshark to a specific C2 IP (`139.60.160.8`), we o
 * **Consistent Size**: Each communication transfers a small, fixed amount of data.
 * **One-Way Traffic**: Data flows primarily from the infected host to the C2 server.
 
-<!-- Add Image from PDF: Wireshark conversation statistics showing beaconing pattern -->
+![Wireshark conversation statistics showing beaconing pattern](images/wireshark-conversation-statistics-beacon-pattern.png)
 
 ### Beacon Analysis with RITA
 
 We can automate beacon detection using RITA (Real Intelligence Threat Analytics), which analyzes Zeek logs. RITA scores connections based on the likelihood of beaconing behavior. In our analysis, RITA flagged the connection to `verofes.com` (the domain for our C2 IP) with a 62.5% confidence score for beaconing, confirming our manual analysis.
 
-<!-- Add Image from PDF: RITA interface showing beaconing detection -->
+![RITA interface showing beaconing detection](images/rita-interface-beacon-detection.png)
 
 ### Certificate Anomaly Analysis
 
@@ -283,9 +224,11 @@ Attackers often use self-signed or fraudulent certificates. We can hunt for anom
 1.  **Blacklist-based**: Check certificate details against known-bad databases like ThreatView.io's list of Cobalt Strike C2 certificates.
 2.  **Lead-based**: Manually inspect certificate fields for suspicious values.
 
+![flagged_domains.sh script output](images/flagged_domains_script_output.png)
+
 In our PCAP, we found a certificate for `verofes.com` with a suspicious `CommonName` of `example.com`, and another certificate for `lgbtqplusfriendlydomain.com` which is a known Cobalt Strike IoC.
 
-<!-- Add Image from PDF: Wireshark view of the anomalous certificate details -->
+![Wireshark view of the anomalous certificate details](images/wireshark-view-anamlous-certificate-details.png)
 
 ---
 
@@ -304,12 +247,14 @@ Malcolm is a powerful, open-source **Network Traffic Analysis (NTA)** tool suite
 
 We start our investigation in the main **Overview Dashboard**.
 
-<!-- Add Image from PDF: Malcolm Overview Dashboard screenshot -->
+![Malcolm Overview Dashboard screenshot](images/malcolm-overview-dashboard.png)
 
 ### Investigating with Zeek, Suricata, and Arkime
 
 **1. Start with Alerts:**
 We move to the **Suricata Alerts** dashboard. We immediately see high-confidence alerts:
+
+![Malcolm Suricata Alerts - Name](images/suricata-alerts-dashboard.png)
 
 * `ET JA3 Hash - [Abuse.ch] Possible Dridex`: 36 hits, pointing to known malicious JA3 fingerprints.
 * `ET INFO PE EXE or DLL Windows file download`: Indicates a malicious file was downloaded.
@@ -317,22 +262,20 @@ We move to the **Suricata Alerts** dashboard. We immediately see high-confidence
 **2. Pivot to Arkime:**
 Clicking on an alert in Malcolm pivots us directly into the **Arkime** interface, which provides a detailed view of all related sessions. Here, we can see the full context: the source/destination IPs, ports, protocols, and all related Zeek logs and Suricata alerts for that specific communication.
 
-<!-- Add Image from PDF: Arkime sessions view showing Suricata alerts -->
+![Arkime sessions view showing Suricata alerts](images/pivorting-from-suricata-alert-suricata.png)
 
 ### Identifying Anomalies in Dashboards
 
 Malcolm's dashboards allow for rapid anomaly detection:
 
-| Dashboard              | Anomaly Detected                                                    | Implication                                                  |
-| :--------------------- | :------------------------------------------------------------------ | :----------------------------------------------------------- |
-| **Connections Graph** | Star pattern with one internal host communicating with many external IoCs. | Confirms a single infected host communicating with a C2 network. |
-| **Zeek Notices** | `Invalid_Server_Cert`, `SSL_Self_Signed_Certificate`.               | Use of untrusted certificates, a common malware technique.   |
-| **DNS Randomness** | High entropy scores for certain domains.                            | Suggests the use of Domain Generation Algorithms (DGAs).     |
-| **Actions & Results** | Most HTTP GETs result in `404 Not Found`, a few `200 OK`.           | Atypical web browsing, may indicate C2 "heartbeat" checks.   |
-
-<!-- Add Image from PDF: Arkime connections graph -->
-<!-- Add Image from PDF: DNS Randomness dashboard -->
-<!-- Add Image from PDF: Actions and Results Sankey diagram -->
+![Arkime connections graph](images/arkime-connection-graph.png)
+![Malcolm Notice, Alert and Signature Summary](images/notice-alert-signature-summary.png)
+![Malcolm Zeek Known Summary](images/zeek-known-summary.png)
+![Malcolm Zeek Notices Destination IPs and Countries](images/zeek-notices.png)
+![Malcolm Connections - Total Bytes](images/connections-total-bytes.png)
+![Malcolm Connections - Connection State](images/connection-states.png)
+![Malcolm Actions and Results Sankey Diagram](images/action-and-results-diagram.png)
+![Malcolm DNS Queries by Randomness](images/dns-quiries-entropy.png)
 
 ---
 
@@ -345,7 +288,7 @@ This real-world example demonstrates hunting based on a high-frequency, unknown 
 **1. The Anomaly:**
 A JA4T signature, `29200_2-4-8-1-3_1424_7`, appeared with very high frequency, mostly communicating over port 22 (SSH). This signature was not in any known database.
 
-<!-- Add Image from PDF: Arkime SPIView showing the high frequency JA4T signature -->
+![Arkime SPIView showing the high frequency JA4T signature](images/spiview-high-frequency-ja4t-sign.png)
 
 **2. Deconstructing the JA4T:**
 
@@ -353,11 +296,17 @@ A JA4T signature, `29200_2-4-8-1-3_1424_7`, appeared with very high frequency, m
 * `1424`: The MSS (Maximum Segment Size) is unusual. A standard MSS is 1460. The smaller size suggests a VPN or tunnel is in use.
 * `29200`: The TCP Window size is also non-standard for typical clients.
 
+![MSS Calculation Diagram](images/mss-calc-diagram.png)
+
 **3. The Discovery:**
 Analysis revealed this signature belongs to the **Pi Node** application, a cryptocurrency miner. Attackers were using the Pi network as a proxy to tunnel their malicious SSH traffic, effectively masking their C2 communications within the "legitimate" mining traffic.
 
 **4. The Hunt:**
 By combining this JA4T with other JA4+ signatures, a high-fidelity detection was created:
+
+![Arkime SPIView for JA4T by Destination Port](images/ja4t-dst-port.png)
+![Arkime SPIView for JA4H and JA4T correlation](images/ja4h-and-ja4t-correlation.png)
+![Arkime SPIView for JA4 and JA4T correlation](images/ja4-and-ja4t-correlation.png)
 
 * **JA4T + Destination Port**: Block or alert on this JA4T when the destination is port 22, but not when it's the legitimate Pi Node port (31400), reducing false positives.
 * **JA4T + JA4H**: When this traffic was seen over port 80 (HTTP), the JA4H signature revealed a `User-Agent` trying to mimic Chinese users (`zhcn`), a common bot tactic.
@@ -368,11 +317,15 @@ This case shows how a single, unknown JA4T signature can be the starting point f
 
 In this advanced scenario, we hunt for a threat that uses a fake Microsoft Teams page to deliver malware.
 
-<!-- Add Image from PDF: Figure 3 - Fake Microsoft Teams page and JS download -->
+![Fake Microsoft Teams Page and JS Download](images/fake-microsoft-teams-page.jpg)
+![Files persistent on the infected host](images/files-persistent-on-infected-host.jpg)
 
 ### Hunting with JA4H (HTTP)
 
 Since the initial infection vector is a web page, we start by analyzing HTTP traffic using **JA4H**. In Arkime's SPIView, we look at the distribution of HTTP fields.
+
+![Arkime SPIView for HTTP fields](images/spiview-http-fields.png)
+![Arkime SPIView for more HTTP fields](images/spiview-http-more-fields.png)
 
 | Anomaly Type   | Finding                                                                 | Implication                                                |
 | :------------- | :---------------------------------------------------------------------- | :--------------------------------------------------------- |
@@ -382,6 +335,8 @@ Since the initial infection vector is a web page, we start by analyzing HTTP tra
 
 We can create a unique fingerprint, `JA4H_ab`, by combining the HTTP method/version with a hash of the headers. This allows us to hunt for this specific bot behavior across our network.
 
+![Arkime SPIView filtered by malicious IP](images/spiview-filtered-malicious-ip.png)
+
 ### Hunting with JA4X (Certificates)
 
 Next, we hunt for certificate anomalies.
@@ -390,7 +345,7 @@ Next, we hunt for certificate anomalies.
 * **Pivot to IPs**: This immediately reveals two malicious IPs: `45.125.66.32` and `45.125.66.252`.
 * **Create JA4X Fingerprint**: We can now take the unique JA4X signature of these self-signed certificates (`2bab15409345_2bab15409345_1e0053d9ccd0`) and use it to find other C2 servers using the same certificate template.
 
-<!-- Add Image from PDF: Arkime SPIView showing JA4X for self-signed certs -->
+![Arkime SPIView for Self-Signed Certificates](images/spiview-self-singed-certificate.png)
 
 ### Combining Signatures for High-Fidelity Detection
 
@@ -406,7 +361,7 @@ This query allows us to:
 * Detect the subsequent encrypted C2 communication (`JA4X`, `JA4`, `JA4S`).
 * Remain effective even if the attacker changes their IP addresses, as the fingerprint is based on *behavior*, not infrastructure.
 
-<!-- Add Image from PDF: Figure 5 - Wireshark view of combined malicious traffic -->
+![Wireshark view of combined malicious traffic](images/wireshark-view-combined-malicious-traffic.png)
 
 ---
 
